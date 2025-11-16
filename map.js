@@ -143,6 +143,79 @@ export class Map {
         return nearest;
     }
 
+    getTallObjects(drawStartX, drawEndX, drawStartY, drawEndY) {
+        const tallObjects = [];
+        for (let j = drawStartY; j < drawEndY; j++) {
+            for (let i = drawStartX; i < drawEndX; i++) {
+                const tileType = this.grid[j] ? this.grid[j][i] : TILE_TYPE.GRASS;
+                if (tileType === TILE_TYPE.TREE) {
+                    tallObjects.push({
+                        type: 'tree',
+                        x: i,
+                        y: j,
+                        image: this.treeTile,
+                    });
+                }
+            }
+        }
+        return tallObjects;
+    }
+
+    renderBase(ctx, cameraX, cameraY, drawStartX, drawEndX, drawStartY, drawEndY) {
+        if (!this.grassTile || !this.grassTile.complete) return;
+
+        ctx.save();
+        
+        const ts = this.tileSize;
+
+        // Iterate and draw ground-level tiles
+        for (let j = drawStartY; j < drawEndY; j++) {
+            for (let i = drawStartX; i < drawEndX; i++) {
+                // Draw base grass tile
+                ctx.drawImage(this.grassTile, i * ts - cameraX, j * ts - cameraY, ts, ts);
+
+                // Draw ground objects
+                const tileType = this.grid[j] ? this.grid[j][i] : TILE_TYPE.GRASS;
+                let objectImage = null;
+
+                switch (tileType) {
+                    case TILE_TYPE.LOGS: objectImage = this.logsTile; break;
+                    case TILE_TYPE.BUSHES: objectImage = this.bushesTile; break;
+                }
+
+                if (objectImage && objectImage.complete) {
+                    ctx.drawImage(objectImage, i * ts - cameraX, j * ts - cameraY, ts, ts);
+                }
+            }
+        }
+        
+        // Draw grid lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // Subtle grid lines
+        ctx.lineWidth = 1;
+
+        // Draw visible vertical lines
+        for (let i = drawStartX; i <= drawEndX; i++) {
+            if (i > this.width) continue; 
+            const x = i * ts;
+            ctx.beginPath();
+            ctx.moveTo(x - cameraX, drawStartY * ts - cameraY);
+            ctx.lineTo(x - cameraX, drawEndY * ts - cameraY);
+            ctx.stroke();
+        }
+
+        // Draw visible horizontal lines
+        for (let j = drawStartY; j <= drawEndY; j++) {
+            if (j > this.height) continue;
+            const y = j * ts;
+            ctx.beginPath();
+            ctx.moveTo(drawStartX * ts - cameraX, y - cameraY);
+            ctx.lineTo(drawEndX * ts - cameraX, y - cameraY);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
     render(ctx, cameraX, cameraY) {
         if (!this.grassTile || !this.grassTile.complete) return;
 

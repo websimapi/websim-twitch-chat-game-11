@@ -191,6 +191,21 @@ export class Game {
         });
     }
 
+    getVisibleTileRange(cameraX, cameraY) {
+        const ts = this.map.tileSize;
+        const startTileX = Math.floor(cameraX / ts);
+        const endTileX = Math.ceil((cameraX + this.canvas.width) / ts);
+        const startTileY = Math.floor(cameraY / ts);
+        const endTileY = Math.ceil((cameraY + this.canvas.height) / ts);
+
+        const drawStartX = Math.max(0, startTileX);
+        const drawEndX = Math.min(this.map.width, endTileX);
+        const drawStartY = Math.max(0, startTileY);
+        const drawEndY = Math.min(this.map.height, endTileY);
+
+        return { drawStartX, drawEndX, drawStartY, drawEndY };
+    }
+
     gameLoop(currentTime = performance.now()) {
         const deltaTime = (currentTime - this.lastTime) / 1000; // in seconds
         this.lastTime = currentTime;
@@ -282,13 +297,52 @@ export class Game {
                 cameraY = -(this.canvas.height - mapPixelHeight) / 2;
             }
         }
-
-        this.map.render(this.ctx, cameraX, cameraY);
         
-        // Only render players who are currently powered
+        const { drawStartX, drawEndX, drawStartY, drawEndY } = this.getVisibleTileRange(cameraX, cameraY);
+        this.map.renderBase(this.ctx, cameraX, cameraY, drawStartX, drawEndX, drawStartY, drawEndY);
+
+        // --- Y-Sorting Render Logic ---
+        const renderList = [];
+
+        // 1. Add players to render list
         for (const player of this.players.values()) {
             if (player.isPowered()) {
-                player.render(this.ctx, tileSize, cameraX, cameraY);
+                renderList.push({
+                    type: 'player',
+                    y: player.pixelY,
+                    entity: player,
+                });
+            }
+        }
+        
+        // 2. Add tall map objects (trees) to render list
+        const tallObjects = this.map.getTallObjects(drawStartX, drawEndX, drawStartY, drawEndY);
+        for (const obj of tallObjects) {
+            renderList.push({
+                type: obj.type,
+                y: obj.y + 0.5, // Sort key for trees to be mid-tile
+                entity: obj,
+            });
+        }
+        
+        // 3. Sort the list by y-coordinate
+        renderList.sort((a, b) => a.y - b.y);
+
+        // 4. Render from the sorted list
+        for (const item of renderList) {
+            if (item.type === 'player') {
+                item.entity.render(this.ctx, tileSize, cameraX, cameraY);
+            } else if (item.type === 'tree') {
+                const { x, y, image } = item.entity;
+                 if (image && image.complete) {
+                    this.ctx.drawImage(
+                        image,
+                        x * tileSize - cameraX,
+                        y * tileSize - cameraY,
+                        tileSize,
+                        tileSize
+                    );
+                }
             }
         }
     }
