@@ -337,8 +337,8 @@ export class Game {
                  if (image && image.complete) {
                     this.ctx.drawImage(
                         image,
-                        x * tileSize - cameraX,
-                        y * tileSize - cameraY,
+                        Math.round(x * tileSize - cameraX),
+                        Math.round(y * tileSize - cameraY),
                         tileSize,
                         tileSize
                     );

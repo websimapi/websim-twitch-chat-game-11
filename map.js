@@ -147,6 +147,7 @@ export class Map {
         const tallObjects = [];
         for (let j = drawStartY; j < drawEndY; j++) {
             for (let i = drawStartX; i < drawEndX; i++) {
+                if (j < 0 || j >= this.height || i < 0 || i >= this.width) continue;
                 const tileType = this.grid[j] ? this.grid[j][i] : TILE_TYPE.GRASS;
                 if (tileType === TILE_TYPE.TREE) {
                     tallObjects.push({
@@ -168,11 +169,15 @@ export class Map {
         
         const ts = this.tileSize;
 
+        // Apply translation to keep drawing coordinates as integers, preventing seams.
+        ctx.translate(Math.round(-cameraX), Math.round(-cameraY));
+
         // Iterate and draw ground-level tiles
         for (let j = drawStartY; j < drawEndY; j++) {
             for (let i = drawStartX; i < drawEndX; i++) {
+                if (j < 0 || j >= this.height || i < 0 || i >= this.width) continue;
                 // Draw base grass tile
-                ctx.drawImage(this.grassTile, i * ts - cameraX, j * ts - cameraY, ts, ts);
+                ctx.drawImage(this.grassTile, i * ts, j * ts, ts, ts);
 
                 // Draw ground objects
                 const tileType = this.grid[j] ? this.grid[j][i] : TILE_TYPE.GRASS;
@@ -184,7 +189,7 @@ export class Map {
                 }
 
                 if (objectImage && objectImage.complete) {
-                    ctx.drawImage(objectImage, i * ts - cameraX, j * ts - cameraY, ts, ts);
+                    ctx.drawImage(objectImage, i * ts, j * ts, ts, ts);
                 }
             }
         }
@@ -198,8 +203,8 @@ export class Map {
             if (i > this.width) continue; 
             const x = i * ts;
             ctx.beginPath();
-            ctx.moveTo(x - cameraX, drawStartY * ts - cameraY);
-            ctx.lineTo(x - cameraX, drawEndY * ts - cameraY);
+            ctx.moveTo(x, drawStartY * ts);
+            ctx.lineTo(x, drawEndY * ts);
             ctx.stroke();
         }
 
@@ -208,8 +213,8 @@ export class Map {
             if (j > this.height) continue;
             const y = j * ts;
             ctx.beginPath();
-            ctx.moveTo(drawStartX * ts - cameraX, y - cameraY);
-            ctx.lineTo(drawEndX * ts - cameraX, y - cameraY);
+            ctx.moveTo(drawStartX * ts, y);
+            ctx.lineTo(drawEndX * ts, y);
             ctx.stroke();
         }
 
