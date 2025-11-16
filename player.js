@@ -1,6 +1,7 @@
 import { PLAYER_STATE } from './player-state.js';
 import { updateAction, startChoppingCycle, setChopTarget } from './player-actions.js';
 import { renderPlayer } from './player-renderer.js';
+import { TILE_TYPE } from './map-tile-types.js';
 
 export const ENERGY_DURATION_MS = 3600 * 1000; // 1 hour (3600 seconds)
 
@@ -164,16 +165,37 @@ export class Player {
 
     // New method to validate state after map is loaded
     validateState(gameMap) {
-        const needsTree = [PLAYER_STATE.MOVING_TO_TREE, PLAYER_STATE.CHOPPING];
-        if (needsTree.includes(this.state)) {
-            if (!this.actionTarget || gameMap.grid[this.actionTarget.y][this.actionTarget.x] !== 1) { // 1 is TILE_TYPE.TREE
-                console.warn(`[${this.username}] Invalid target for state ${this.state}. Tree at (${this.actionTarget?.x}, ${this.actionTarget?.y}) not found. Resetting to IDLE.`);
+        const stateToTileType = {
+            [PLAYER_STATE.MOVING_TO_TREE]: TILE_TYPE.TREE,
+            [PLAYER_STATE.CHOPPING]: TILE_TYPE.TREE,
+            [PLAYER_STATE.MOVING_TO_LOGS]: TILE_TYPE.LOGS,
+            [PLAYER_STATE.HARVESTING_LOGS]: TILE_TYPE.LOGS,
+            [PLAYER_STATE.MOVING_TO_BUSHES]: TILE_TYPE.BUSHES,
+            [PLAYER_STATE.HARVESTING_BUSHES]: TILE_TYPE.BUSHES,
+        };
+
+        const requiredTileType = stateToTileType[this.state];
+        
+        if (requiredTileType !== undefined) {
+            const target = this.actionTarget;
+            const isTargetInvalid = !target || 
+                                    !gameMap.grid[target.y] || 
+                                    gameMap.grid[target.y][target.x] !== requiredTileType;
+
+            if (isTargetInvalid) {
+                console.warn(`[${this.username}] Invalid target for state ${this.state}. Target tile at (${target?.x}, ${target?.y}) is missing or incorrect. Resetting to IDLE.`);
                 this.state = PLAYER_STATE.IDLE;
                 this.actionTarget = null;
-            } else if (this.state === PLAYER_STATE.MOVING_TO_TREE) {
-                // If the player was moving to a tree, their movement target needs to be re-established.
-                console.log(`[${this.username}] Re-initializing move target for state ${this.state}.`);
-                setChopTarget(this, gameMap, this.actionTarget);
+            } else {
+                // Target is valid, re-initialize movement if needed
+                if (this.state === PLAYER_STATE.MOVING_TO_TREE) {
+                    console.log(`[${this.username}] Re-initializing move target for state ${this.state}.`);
+                    setChopTarget(this, gameMap, this.actionTarget);
+                } else if (this.state === PLAYER_STATE.MOVING_TO_LOGS || this.state === PLAYER_STATE.MOVING_TO_BUSHES) {
+                    console.log(`[${this.username}] Re-initializing move target for state ${this.state}.`);
+                    this.targetX = this.actionTarget.x;
+                    this.targetY = this.actionTarget.y;
+                }
             }
         }
     }
